@@ -111,24 +111,28 @@ class AudioRoomManager {
         // Connect nodes and start the audio engine
         // audioEngine.connect(audioEngine.inputNode, to: audioEngine.mainMixerNode, format: targetFormat)
         
-        let targetOutputFormat = AVAudioFormat(commonFormat: .pcmFormatInt16, sampleRate: targetSampleRate, channels: channelCount, interleaved: true)!
+        /*
+             let targetOutputFormat = AVAudioFormat(commonFormat: .pcmFormatInt16, sampleRate: targetSampleRate, channels: channelCount, interleaved: true)!
 
-        // Create a converter for the output side if needed
-        let outputConverter = AVAudioConverter(from: audioEngine.outputNode.outputFormat(forBus: 0), to: targetOutputFormat)!
+            // Create a converter for the output side if needed
+            let outputConverter = AVAudioConverter(from: audioEngine.outputNode.outputFormat(forBus: 0), to: targetOutputFormat)!
 
-        audioEngine.mainMixerNode.installTap(onBus: 0, bufferSize: 4096, format: targetOutputFormat) { buffer, _ in
-            var error: NSError? = nil
-            let convertedOutputBuffer = AVAudioPCMBuffer(pcmFormat: targetOutputFormat, frameCapacity: AVAudioFrameCount(self.targetSampleRate))!
-            //let convertedOutputBuffer = AVAudioPCMBuffer(pcmFormat: targetOutputFormat, frameCapacity: buffer.frameCapacity)!
-
-            let outputBlock: AVAudioConverterInputBlock = { inNumPackets, outStatus in
-                outStatus.pointee = .haveData
-                return buffer
+            audioEngine.mainMixerNode.installTap(onBus: 0, bufferSize: 4096, format: targetOutputFormat) { buffer, _ in
+                var error: NSError? = nil
+                let convertedOutputBuffer = AVAudioPCMBuffer(pcmFormat: targetOutputFormat, frameCapacity: AVAudioFrameCount(self.targetSampleRate))!
+                //let convertedOutputBuffer = AVAudioPCMBuffer(pcmFormat: targetOutputFormat, frameCapacity: buffer.frameCapacity)!
+                            
+                let outputBlock: AVAudioConverterInputBlock = { inNumPackets, outStatus in
+                    outStatus.pointee = .haveData
+                    return buffer
+                }
+                            
+                outputConverter.convert(to: convertedOutputBuffer, error: &error, withInputFrom: outputBlock)
+                // Here you have the resampled output audio data that you can send to the output node
+                
+                //print("Converted buffer \(convertedOutputBuffer.frameLength)")
             }
-
-            outputConverter.convert(to: convertedOutputBuffer, error: &error, withInputFrom: outputBlock)
-            // Here you have the resampled output audio data that you can send to the output node
-        }
+         */
         
         
         audioEngine.mainMixerNode // this fix bug make app crash
@@ -143,8 +147,63 @@ class AudioRoomManager {
    
     // play audio
     private func processAudioData(userId: String, data: Data) {
+        // Decode Opus data to raw PCM
+        guard let decodedData = OpusSwiftPort.shared.decodeData(data) else {
+            print("Failed to decode Opus data")
+            return
+        }
+        
+        //let decodedData = data
+        
+        // Determine the output format of the audio engine
+        let outputFormat = audioEngine.inputNode.outputFormat(forBus: 0) //outputNode.outputFormat(forBus: 0)
+        
+        // Convert decoded data to AVAudioPCMBuffer
+        guard let inputBufferFormat = AVAudioFormat(commonFormat: .pcmFormatInt16, sampleRate: self.targetSampleRate, channels: self.channelCount, interleaved: true) else {
+            print("Failed to create input buffer format")
+            return
+        }
+        
+        guard let audioBuffer = decodedData.toAudioBuffer(format: inputBufferFormat) else {
+            print("Failed to create audio buffer from decoded data")
+            return
+        }
+        
+        //scheduleAndPlayAudio(userId: userId, buffer: audioBuffer)
+        
+        
+        // Check if resampling is needed
+        if inputBufferFormat != outputFormat {
+            guard let converter = AVAudioConverter(from: inputBufferFormat, to: outputFormat) else {
+                print("Failed to create AVAudioConverter")
+                return
+            }
+            
+            let resampledBuffer = AVAudioPCMBuffer(pcmFormat: outputFormat, frameCapacity: audioBuffer.frameCapacity)!
+            
+            var error: NSError? = nil
+            converter.convert(to: resampledBuffer, error: &error, withInputFrom: { inNumPackets, outStatus in
+                outStatus.pointee = .haveData
+                return audioBuffer
+            })
+            
+            if let error = error {
+                print("Error during audio conversion: \(error)")
+                return
+            }
+            
+        
+            // Use the resampled buffer
+            scheduleAndPlayAudio(userId: userId, buffer: resampledBuffer)
+        } else {
+            // No resampling needed, use the original buffer
+            scheduleAndPlayAudio(userId: userId, buffer: audioBuffer)
+        }
+        
+        
+        /*
         // decode audio
-        //let data = OpusSwiftPort.shared.decodeData(data) ?? Data()
+        let data = OpusSwiftPort.shared.decodeData(data) ?? Data()
         //let bufferFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 44100, channels: 1, interleaved: false)!
         let bufferFormat = audioEngine.outputNode.outputFormat(forBus: 0)
         //let bufferFormat = AVAudioFormat(commonFormat: .pcmFormatInt16, sampleRate: self.targetSampleRate, channels: 1, interleaved: true)!
@@ -155,6 +214,8 @@ class AudioRoomManager {
         //data.withUnsafeBytes { audioBuffer.int16ChannelData?.pointee.update(from: $0.bindMemory(to: Int16.self).baseAddress!, count: Int(audioBuffer.frameCapacity)) }
         
         let audioBuffer = data.toAudioBuffer(format: bufferFormat)!
+        
+        print("Play buffer \(audioBuffer.format)")
         
         if let playerNode = playerNodes[userId] {
             playerNode.scheduleBuffer(audioBuffer, at: nil)
@@ -170,6 +231,24 @@ class AudioRoomManager {
             playerNode.scheduleBuffer(audioBuffer, at: nil)
             playerNode.play()
             print("Buffer: \(bufferFormat)")
+        }
+        */
+    }
+    
+    private func scheduleAndPlayAudio(userId: String, buffer: AVAudioPCMBuffer) {
+        if let playerNode = playerNodes[userId] {
+            playerNode.scheduleBuffer(buffer, at: nil)
+            if !playerNode.isPlaying {
+                playerNode.play()
+            }
+        } else {
+            let playerNode = AVAudioPlayerNode()
+            playerNodes[userId] = playerNode
+            audioEngine.attach(playerNode)
+            audioEngine.connect(playerNode, to: audioEngine.mainMixerNode, format: buffer.format)
+            playerNode.scheduleBuffer(buffer, at: nil)
+            playerNode.play()
+            print("Buffer format: \(buffer.format)")
         }
     }
 
@@ -188,8 +267,8 @@ class AudioRoomManager {
         }
         
         // MARK: check this value
-        let frameSize:UInt32 = 4096// 280 // 5760 // 1024
-        print("recordingFormat: \(inputFormat)")
+        let frameSize:UInt32 = 280// 280 // 5760 // 1024
+        print("recordingFormat: \(targetFormat)")
         
         inputNode.installTap(onBus: 0, bufferSize: frameSize, format: inputFormat) { buffer, time in
             //guard let channelData = buffer.floatChannelData?[0] else {  print("not sendt"); return }
@@ -204,12 +283,11 @@ class AudioRoomManager {
             var error: NSError? = nil
             
             // Create an output buffer with the target format
-            guard let outputBuffer = AVAudioPCMBuffer(pcmFormat: targetFormat, frameCapacity: AVAudioFrameCount(self.targetSampleRate)) else {
-            //guard let outputBuffer = AVAudioPCMBuffer(pcmFormat: targetFormat, frameCapacity: buffer.frameCapacity) else {
+            //guard let outputBuffer = AVAudioPCMBuffer(pcmFormat: targetFormat, frameCapacity: AVAudioFrameCount(self.targetSampleRate)) else {
+            guard let outputBuffer = AVAudioPCMBuffer(pcmFormat: targetFormat, frameCapacity: buffer.frameCapacity) else {
                 print("Failed to create output buffer")
                 return
             }
-            
             
             // Perform the conversion
             let inputBlock: AVAudioConverterInputBlock = { inNumPackets, outStatus in
@@ -230,18 +308,16 @@ class AudioRoomManager {
             // Now, outputBuffer contains the audio data in the new format (41,000 Hz, Int16)
             // You can further process or send this data to an audio output node
             
-            //let data = outputBuffer.toData()
-            let data = buffer.toData()
-            //let data = Data(bytes: channelData, count: Int(buffer.frameCapacity * buffer.format.streamDescription.pointee.mBytesPerFrame))
-            print("converted size: \(outputBuffer.toData().count) old: \(data.count)")
+            let data = outputBuffer.toData() // resampled buffer
+            //let data = buffer.toData() // original buffer
+
             
             // encode audio data
             let packet = OpusSwiftPort.shared.encodeData(data)
             
-            //self.socket.emit("audioData", ["audio": packet])
-            //self.socket.emit("audioData", packet ?? Data())
-            self.socket.emit("audioData", data)
-            //self.processAudioData(userId: "Ahmed", data: data )
+            
+            self.socket.emit("audioData", packet ?? Data())
+            //self.socket.emit("audioData", data)
         }
         
     }
