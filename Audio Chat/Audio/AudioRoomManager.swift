@@ -14,8 +14,8 @@ class AudioRoomManager {
     // audio settings
     let sample_rate:opus_int32      = 48000
     let channel:Int32               = 1
-    let frameSize:opus_int32        = 2880 // 4000 // 320// 4000 // 2000 /// 5760
-    let encodeBlockSize:opus_int32  = 280// 2880 // 160 // 2880  /// 1440
+    let frameSize:opus_int32        = 2880 //2880 // 4000 // 320// 4000 // 2000 /// 5760
+    let encodeBlockSize:opus_int32  = 5760 //280// 2880 // 160 // 2880  /// 1440
     
     // Define the target format
     let targetSampleRate: Double = 48000.0
@@ -24,6 +24,9 @@ class AudioRoomManager {
     let audioEngine = AVAudioEngine()
     var playerNodes: [String: AVAudioPlayerNode] = [:]
     let socket: SocketIOClient
+    
+    // MARK: Instance Variables
+      private let conversionQueue = DispatchQueue(label: "conversionQueue")
 
     init(socketURL: URL, username: String) {
         
@@ -55,8 +58,8 @@ class AudioRoomManager {
 
             try audioSession.setActive(true , options: [.notifyOthersOnDeactivation])
             try audioSession.setCategory( .playAndRecord , mode: .default , options: [ .defaultToSpeaker ])// <-- https://www.hackingwithswift.com/forums/ios/bi-directional-play-record-w-bluetooth-earpods/6137
-            try audioSession.setPreferredIOBufferDuration(0.06)
-            try audioSession.setPreferredSampleRate(Double(sample_rate))
+            //try audioSession.setPreferredIOBufferDuration(0.06)// 60ms
+            //try audioSession.setPreferredSampleRate(Double(sample_rate))
             
         } catch {
             print("audioSession properties weren't set because of an error.")
@@ -93,7 +96,7 @@ class AudioRoomManager {
                     print("No audio data")
                     return
                 }
-                
+                                
                 self.processAudioData(userId: userId!, data: audioData ?? Data())
 
             }
@@ -147,6 +150,7 @@ class AudioRoomManager {
    
     // play audio
     private func processAudioData(userId: String, data: Data) {
+        
         // Decode Opus data to raw PCM
         guard let decodedData = OpusSwiftPort.shared.decodeData(data) else {
             print("Failed to decode Opus data")
@@ -201,6 +205,7 @@ class AudioRoomManager {
         }
         
         
+        
         /*
         // decode audio
         let data = OpusSwiftPort.shared.decodeData(data) ?? Data()
@@ -253,6 +258,8 @@ class AudioRoomManager {
     }
 
     // send audio
+    // this is for info
+    // https://github.com/tensorflow/examples/blob/master/lite/examples/speech_commands/ios/SpeechCommands/AudioInputManager/AudioInputManager.swift
     private func startRecording() {
         
         let inputNode = audioEngine.inputNode
@@ -267,60 +274,94 @@ class AudioRoomManager {
         }
         
         // MARK: check this value
-        let frameSize:UInt32 = 280// 280 // 5760 // 1024
+        let frameSize:UInt32 = 5760// 280 // 5760 // 1024
         print("recordingFormat: \(targetFormat)")
         
-        inputNode.installTap(onBus: 0, bufferSize: frameSize, format: inputFormat) { buffer, time in
-            //guard let channelData = buffer.floatChannelData?[0] else {  print("not sendt"); return }
-            //guard let channelData = buffer.int16ChannelData?[0] else { print("not sendt");  return }
+        inputNode.installTap(onBus: 0, bufferSize: AVAudioFrameCount(frameSize), format: inputFormat) { buffer, time in
             
-            // Ensure that the buffer format matches the expected input format for the converter
-            guard buffer.format == inputFormat else {
-                print("Buffer format does not match the expected input format for the converter")
-                return
-            }
-            
-            var error: NSError? = nil
-            
-            // Create an output buffer with the target format
-            //guard let outputBuffer = AVAudioPCMBuffer(pcmFormat: targetFormat, frameCapacity: AVAudioFrameCount(self.targetSampleRate)) else {
-            guard let outputBuffer = AVAudioPCMBuffer(pcmFormat: targetFormat, frameCapacity: buffer.frameCapacity) else {
-                print("Failed to create output buffer")
-                return
-            }
-            
-            // Perform the conversion
-            let inputBlock: AVAudioConverterInputBlock = { inNumPackets, outStatus in
-                outStatus.pointee = .haveData
-                return buffer
-            }
-            
-            converter.convert(to: outputBuffer, error: &error, withInputFrom: inputBlock)
-            
-            if let error = error {
-                print("Error during conversion: \(error)")
-            } else {
-                // Here, you can use `outputBuffer` for further processing or output
-                // For example, write it to a file or send it to an audio output node
-                //print("Successfully converted audio")
-            }
-            
-            // Now, outputBuffer contains the audio data in the new format (41,000 Hz, Int16)
-            // You can further process or send this data to an audio output node
-            
-            let data = outputBuffer.toData() // resampled buffer
-            //let data = buffer.toData() // original buffer
-
-            
-            // encode audio data
-            let packet = OpusSwiftPort.shared.encodeData(data)
-            
-            
-            self.socket.emit("audioData", packet ?? Data())
-            //self.socket.emit("audioData", data)
+            //self.conversionQueue.async {
+                                                
+                //guard let channelData = buffer.floatChannelData?[0] else {  print("not sendt"); return }
+                //guard let channelData = buffer.int16ChannelData?[0] else { print("not sendt");  return }
+                
+                // Ensure that the buffer format matches the expected input format for the converter
+                guard buffer.format == inputFormat else {
+                    print("Buffer format does not match the expected input format for the converter")
+                    return
+                }
+                
+                
+                var error: NSError? = nil
+                
+                // Create an output buffer with the target format
+                //guard let outputBuffer = AVAudioPCMBuffer(pcmFormat: targetFormat, frameCapacity: AVAudioFrameCount(self.targetSampleRate)) else {
+                guard let resampledBuffer = AVAudioPCMBuffer(pcmFormat: targetFormat, frameCapacity: buffer.frameCapacity) else {
+                    print("Failed to create output buffer")
+                    return
+                }
+                
+                // Perform the conversion
+                let inputBlock: AVAudioConverterInputBlock = { inNumPackets, outStatus in
+                    outStatus.pointee = .haveData
+                    return buffer
+                }
+                
+                converter.convert(to: resampledBuffer, error: &error, withInputFrom: inputBlock)
+                                
+                
+                if let error = error {
+                    print("Error during conversion: \(error)")
+                } else {
+                    // Here, you can use `outputBuffer` for further processing or output
+                    // For example, write it to a file or send it to an audio output node
+                    //print("Successfully converted audio")
+                }
+                
+                // Now, outputBuffer contains the audio data in the new format (41,000 Hz, Int16)
+                // You can further process or send this data to an audio output node
+                
+                //let data = resampledBuffer.toData() // resampled buffer
+                //let data = buffer.toData() // original buffer
+                
+                //print("Sent size: \(data.count)")
+                
+                // encode audio data
+                //let packet = OpusSwiftPort.shared.encodeData(data)
+                
+                //self.socket.emit("audioData", packet ?? Data())
+                //self.socket.emit("audioData", data)
+                
+                // process audio
+                let frameLength   = Int(resampledBuffer.frameLength)
+                let bufferPointer = resampledBuffer.int16ChannelData!.pointee
+                
+                // Process the buffer data in chunks
+                self.processBufferData(bufferPointer, frameLength: frameLength)
+                
+                
+            //}// end of conversionQueue
         }
         
     }
+    
+    
+    private func processBufferData(_ bufferPointer: UnsafePointer<Int16>, frameLength: Int) {
+        let chunkSize = 2880 // 60ms chunk size (48000 * 0.06 seconds)
+        
+        // Convert the whole buffer to Data
+        let data = Data(bytes: bufferPointer, count: frameLength * 2)
+        
+        var offset = 0
+        
+        // Process each 60ms chunk
+        while offset + chunkSize <= frameLength {
+            let chunkData = data.subdata(in: offset..<(offset + chunkSize * 2))
+            if let encodedPacket = OpusSwiftPort.shared.encodeData(chunkData) {                
+                self.socket.emit("audioData", encodedPacket)
+            }
+            offset += chunkSize
+        }
+    }// end of sending audio data
     
 }
 

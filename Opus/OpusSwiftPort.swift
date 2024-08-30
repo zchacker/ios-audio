@@ -18,11 +18,11 @@ public class OpusSwiftPort: NSObject{
     var encoder: OpaquePointer!
     var sampleRate: opus_int32 = 48000 //8000
     var numberOfChannels: Int32 = 1
-    var frameSize: opus_int32 = 4000 // 320
-    var encodeBlockSize: opus_int32 = 2880// 160
+    var frameSize: opus_int32 = 2880 // 320
+    var encodeBlockSize: opus_int32 = 5760// 160
     
     // MARK: - Initialization
-    public func initialize(sampleRate: opus_int32 = 48000, numberOfChannels: Int32 = 1, frameSize: opus_int32 = 4000, encodeBlockSize: opus_int32 = 2880) {
+    public func initialize(sampleRate: opus_int32 = 48000, numberOfChannels: Int32 = 1, frameSize: opus_int32 = 2880, encodeBlockSize: opus_int32 = 5760) {
         
         // Store variables.
         self.sampleRate = sampleRate
@@ -46,7 +46,7 @@ public class OpusSwiftPort: NSObject{
             print("OpusKit - Something went wrong while creating opus encoder: \(opusErrorMessage(errorCode: status))")
         }
                 
-        let ctl:Int32 = set_ctl_vars(encoder, 24000)
+        let ctl:Int32 = set_ctl_vars(encoder, 128000)
         print("Opus Codec is ready!, CTL vars is = \(ctl)")
         
     }
@@ -59,9 +59,9 @@ public class OpusSwiftPort: NSObject{
         //print("audio network length : \(data.count)")
         
         var encodedData   = [CUnsignedChar](repeating: 0, count: data.count)
-        var decodedData   = [opus_int16](repeating: 0, count: 2880)// this is when we use normal decodeing
-        //var decodedData = [Float32](repeating: 0, count: 2880)// this is when we use float decoding
-                
+        var decodedData   = [opus_int16](repeating: 0, count: Int(frameSize * numberOfChannels * 2) )// this is when we use normal decodeing
+        //var decodedData = [Float32](repeating: 0, count: Int(frameSize * numberOfChannels * 4) )// this is when we use float decoding
+                       
         
         _ = data.withUnsafeBytes {
             memcpy(&encodedData, $0, data.count)
@@ -69,7 +69,7 @@ public class OpusSwiftPort: NSObject{
         
         
         let outputData: NSMutableData = NSMutableData()
-        let ret = opus_decode(decoder , encodedData , (opus_int32)(data.count) , &decodedData, frameSize, 0)
+        let ret = opus_decode(decoder , encodedData , (opus_int32)(data.count) , &decodedData, frameSize, 1)
         //let ret = opus_decode_float(decoder, encodedData, (opus_int32)(data.count), &decodedData, packetSize, 0)
         
         if ret > 0 {

@@ -19,6 +19,7 @@
 		4E587B702C52A8A5002D9A55 /* Base in Resources */ = {isa = PBXBuildFile; fileRef = 4E587B6F2C52A8A5002D9A55 /* Base */; };
 		4E587B792C52AACD002D9A55 /* AudioRoomManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E587B782C52AACD002D9A55 /* AudioRoomManager.swift */; };
 		4E587B7C2C52B22F002D9A55 /* SocketIO in Frameworks */ = {isa = PBXBuildFile; productRef = 4E587B7B2C52B22F002D9A55 /* SocketIO */; };
+		4E74D3512C8210500001D88E /* SwiftRingBuffer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E74D3502C8210500001D88E /* SwiftRingBuffer.swift */; };
 		5B1AF5A9DDF770AFAE755055 /* Pods_Audio_Chat.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 926E633ABC8480E8D9D28039 /* Pods_Audio_Chat.framework */; };
 /* End PBXBuildFile section */
 
@@ -59,6 +60,7 @@
 		4E587B6F2C52A8A5002D9A55 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		4E587B712C52A8A5002D9A55 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		4E587B782C52AACD002D9A55 /* AudioRoomManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioRoomManager.swift; sourceTree = "<group>"; };
+		4E74D3502C8210500001D88E /* SwiftRingBuffer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftRingBuffer.swift; sourceTree = "<group>"; };
 		926E633ABC8480E8D9D28039 /* Pods_Audio_Chat.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_Audio_Chat.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -148,6 +150,7 @@
 		4E587B622C52A8A3002D9A55 /* Audio Chat */ = {
 			isa = PBXGroup;
 			children = (
+				4E74D34F2C82103C0001D88E /* Model */,
 				4E0037722C5EDC800025E85C /* Network */,
 				4E587B772C52AAC1002D9A55 /* Audio */,
 				4E587B632C52A8A3002D9A55 /* AppDelegate.swift */,
@@ -167,6 +170,14 @@
 				4E587B782C52AACD002D9A55 /* AudioRoomManager.swift */,
 			);
 			path = Audio;
+			sourceTree = "<group>";
+		};
+		4E74D34F2C82103C0001D88E /* Model */ = {
+			isa = PBXGroup;
+			children = (
+				4E74D3502C8210500001D88E /* SwiftRingBuffer.swift */,
+			);
+			path = Model;
 			sourceTree = "<group>";
 		};
 		8B2D5C489F6F3F2A6F9E173D /* Pods */ = {
@@ -290,6 +301,7 @@
 				4E587B662C52A8A3002D9A55 /* SceneDelegate.swift in Sources */,
 				4E2140E12C558B0000C53749 /* OpusPort.c in Sources */,
 				4E587B792C52AACD002D9A55 /* AudioRoomManager.swift in Sources */,
+				4E74D3512C8210500001D88E /* SwiftRingBuffer.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
