@@ -69,7 +69,7 @@ public class OpusSwiftPort: NSObject{
         
         
         let outputData: NSMutableData = NSMutableData()
-        let ret = opus_decode(decoder , encodedData , (opus_int32)(data.count) , &decodedData, frameSize, 1)
+        let ret = opus_decode(decoder , encodedData , (opus_int32)(data.count) , &decodedData, frameSize, 0)
         //let ret = opus_decode_float(decoder, encodedData, (opus_int32)(data.count), &decodedData, packetSize, 0)
         
         if ret > 0 {

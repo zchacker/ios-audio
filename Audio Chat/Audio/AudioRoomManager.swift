@@ -163,7 +163,7 @@ class AudioRoomManager {
         let outputFormat = audioEngine.inputNode.outputFormat(forBus: 0) //outputNode.outputFormat(forBus: 0)
         
         // Convert decoded data to AVAudioPCMBuffer
-        guard let inputBufferFormat = AVAudioFormat(commonFormat: .pcmFormatInt16, sampleRate: self.targetSampleRate, channels: self.channelCount, interleaved: true) else {
+        guard let inputBufferFormat = AVAudioFormat(commonFormat: .pcmFormatInt16, sampleRate: self.targetSampleRate, channels: self.channelCount, interleaved: false) else {
             print("Failed to create input buffer format")
             return
         }
@@ -266,7 +266,7 @@ class AudioRoomManager {
         let inputFormat = inputNode.inputFormat(forBus: 0)
         // let inputFormat =  AVAudioFormat(commonFormat: .pcmFormatInt16, sampleRate: 48000, channels: 1, interleaved: false)!
         
-        let targetFormat = AVAudioFormat(commonFormat: .pcmFormatInt16, sampleRate: targetSampleRate, channels: channelCount, interleaved: true)!
+        let targetFormat = AVAudioFormat(commonFormat: .pcmFormatInt16, sampleRate: targetSampleRate, channels: channelCount, interleaved: false)!
         
         // Create a converter to convert the input audio to the target format
         guard let converter = AVAudioConverter(from: inputFormat, to: targetFormat) else {
@@ -279,7 +279,7 @@ class AudioRoomManager {
         
         inputNode.installTap(onBus: 0, bufferSize: AVAudioFrameCount(frameSize), format: inputFormat) { buffer, time in
             
-            //self.conversionQueue.async {
+            self.conversionQueue.async {
                                                 
                 //guard let channelData = buffer.floatChannelData?[0] else {  print("not sendt"); return }
                 //guard let channelData = buffer.int16ChannelData?[0] else { print("not sendt");  return }
@@ -339,7 +339,7 @@ class AudioRoomManager {
                 self.processBufferData(bufferPointer, frameLength: frameLength)
                 
                 
-            //}// end of conversionQueue
+            }// end of conversionQueue
         }
         
     }
