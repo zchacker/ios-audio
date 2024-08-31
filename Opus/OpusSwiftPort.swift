@@ -41,12 +41,12 @@ public class OpusSwiftPort: NSObject{
         }
         
         // Create encoder.
-        encoder = opus_encoder_create(sampleRate, numberOfChannels, OPUS_APPLICATION_AUDIO, &status)
+        encoder = opus_encoder_create(sampleRate, numberOfChannels, OPUS_APPLICATION_VOIP, &status)
         if (status != OPUS_OK) {
             print("OpusKit - Something went wrong while creating opus encoder: \(opusErrorMessage(errorCode: status))")
         }
                 
-        let ctl:Int32 = set_ctl_vars(encoder, 128000)
+        let ctl:Int32 = set_ctl_vars(encoder, 96000)
         print("Opus Codec is ready!, CTL vars is = \(ctl)")
         
     }

@@ -71,13 +71,13 @@ int set_ctl_vars(OpusEncoder *enc , int bitrate){
     if(err < 0){
         printf("faild to set DTX %s \n", opus_strerror(err));
         return 0;
-    }
+    }*/
     
-    err = opus_encoder_ctl(enc, OPUS_SET_PACKET_LOSS_PERC(1));
+    err = opus_encoder_ctl(enc, OPUS_SET_PACKET_LOSS_PERC(50));
     if(err < 0){
         printf("faild to set packet loss: %s \n", opus_strerror(err));
         return 0;
-    }*/
+    }
     
     err = opus_encoder_ctl(enc, OPUS_SET_EXPERT_FRAME_DURATION(OPUS_FRAMESIZE_60_MS));
     if(err < 0){

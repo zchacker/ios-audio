@@ -15,21 +15,27 @@ class AudioRoomManager {
     let sample_rate:opus_int32      = 48000
     let channel:Int32               = 1
     let frameSize:opus_int32        = 2880 //2880 // 4000 // 320// 4000 // 2000 /// 5760
-    let encodeBlockSize:opus_int32  = 5760 //280// 2880 // 160 // 2880  /// 1440
+    let encodeBlockSize:opus_int32  = 5670 //280// 2880 // 160 // 2880  /// 1440
     
     // Define the target format
     let targetSampleRate: Double = 48000.0
     let channelCount: AVAudioChannelCount = 1
+    
+    var audioRingBuffer:RingBuffer        = RingBuffer<AudioData>(size: 32)
+    var audioEncoedRingBuffer:RingBuffer  = RingBuffer<Data>(size: 30)
     
     let audioEngine = AVAudioEngine()
     var playerNodes: [String: AVAudioPlayerNode] = [:]
     let socket: SocketIOClient
     
     // MARK: Instance Variables
-      private let conversionQueue = DispatchQueue(label: "conversionQueue")
+    private let conversionQueue = DispatchQueue(label: "conversionQueue")
 
-    init(socketURL: URL, username: String) {
+    var viewParent:ViewController?
+    
+    init(socketURL: URL, username: String, viewParent:ViewController ) {
         
+        self.viewParent = viewParent
         self.socket = SocketHandeler.shared.getSocket()
         
         self.requestMicrophonePermission { granted in
@@ -58,8 +64,8 @@ class AudioRoomManager {
 
             try audioSession.setActive(true , options: [.notifyOthersOnDeactivation])
             try audioSession.setCategory( .playAndRecord , mode: .default , options: [ .defaultToSpeaker ])// <-- https://www.hackingwithswift.com/forums/ios/bi-directional-play-record-w-bluetooth-earpods/6137
-            //try audioSession.setPreferredIOBufferDuration(0.06)// 60ms
-            //try audioSession.setPreferredSampleRate(Double(sample_rate))
+            try audioSession.setPreferredIOBufferDuration(0.06)// 60ms
+            try audioSession.setPreferredSampleRate(Double(sample_rate))
             
         } catch {
             print("audioSession properties weren't set because of an error.")
@@ -78,6 +84,9 @@ class AudioRoomManager {
         self.socket.on(clientEvent: .connect) { data, ack in
             print("socket connected")
             self.socket.emit("addUser", ["username": username])
+            DispatchQueue.main.async {
+                self.viewParent!.loadingView.isHidden = true
+            }
         }
 
         self.socket.on("audioData") { data, ack in
@@ -108,45 +117,26 @@ class AudioRoomManager {
     private func setupAudioEngine() {
         
         self.startRecording()
-        
-        //let targetInputFormat = AVAudioFormat(commonFormat: .pcmFormatInt16, sampleRate: targetSampleRate, channels: channelCount, interleaved: true)!
-       
-        // Connect nodes and start the audio engine
-        // audioEngine.connect(audioEngine.inputNode, to: audioEngine.mainMixerNode, format: targetFormat)
-        
-        /*
-             let targetOutputFormat = AVAudioFormat(commonFormat: .pcmFormatInt16, sampleRate: targetSampleRate, channels: channelCount, interleaved: true)!
-
-            // Create a converter for the output side if needed
-            let outputConverter = AVAudioConverter(from: audioEngine.outputNode.outputFormat(forBus: 0), to: targetOutputFormat)!
-
-            audioEngine.mainMixerNode.installTap(onBus: 0, bufferSize: 4096, format: targetOutputFormat) { buffer, _ in
-                var error: NSError? = nil
-                let convertedOutputBuffer = AVAudioPCMBuffer(pcmFormat: targetOutputFormat, frameCapacity: AVAudioFrameCount(self.targetSampleRate))!
-                //let convertedOutputBuffer = AVAudioPCMBuffer(pcmFormat: targetOutputFormat, frameCapacity: buffer.frameCapacity)!
-                            
-                let outputBlock: AVAudioConverterInputBlock = { inNumPackets, outStatus in
-                    outStatus.pointee = .haveData
-                    return buffer
-                }
-                            
-                outputConverter.convert(to: convertedOutputBuffer, error: &error, withInputFrom: outputBlock)
-                // Here you have the resampled output audio data that you can send to the output node
-                
-                //print("Converted buffer \(convertedOutputBuffer.frameLength)")
-            }
-         */
-        
-        
         audioEngine.mainMixerNode // this fix bug make app crash
         audioEngine.prepare()
+        
         do {
+            
             try audioEngine.start()
+            
+            let timer = Timer.scheduledTimer(withTimeInterval: 0.06, repeats: true) { _ in
+                self.checkAndPlayBuffer()
+            }
+            
+//            let senderTimer = Timer.scheduledTimer(withTimeInterval: 0.06, repeats: true) { _ in
+//                self.checkAndSendBuffer()
+//            }
+            
         } catch {
             print("Error starting audio engine: \(error)")
         }
+        
     }
-
    
     // play audio
     private func processAudioData(userId: String, data: Data) {
@@ -160,7 +150,7 @@ class AudioRoomManager {
         //let decodedData = data
         
         // Determine the output format of the audio engine
-        let outputFormat = audioEngine.inputNode.outputFormat(forBus: 0) //outputNode.outputFormat(forBus: 0)
+        let outputFormat = audioEngine.outputNode.outputFormat(forBus: 0)
         
         // Convert decoded data to AVAudioPCMBuffer
         guard let inputBufferFormat = AVAudioFormat(commonFormat: .pcmFormatInt16, sampleRate: self.targetSampleRate, channels: self.channelCount, interleaved: false) else {
@@ -198,46 +188,40 @@ class AudioRoomManager {
             
         
             // Use the resampled buffer
-            scheduleAndPlayAudio(userId: userId, buffer: resampledBuffer)
+            // scheduleAndPlayAudio(userId: userId, buffer: resampledBuffer)
+            
+            // save it in buffer
+            let audioData = AudioData(userId: userId, buffer: resampledBuffer)
+            self.audioRingBuffer.write(audioData)
+            
         } else {
             // No resampling needed, use the original buffer
-            scheduleAndPlayAudio(userId: userId, buffer: audioBuffer)
+            // scheduleAndPlayAudio(userId: userId, buffer: audioBuffer)
+            
+            // save it in buffer
+            let audioData = AudioData(userId: userId, buffer: audioBuffer)
+            self.audioRingBuffer.write(audioData)
+            
         }
         
-        
-        
-        /*
-        // decode audio
-        let data = OpusSwiftPort.shared.decodeData(data) ?? Data()
-        //let bufferFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 44100, channels: 1, interleaved: false)!
-        let bufferFormat = audioEngine.outputNode.outputFormat(forBus: 0)
-        //let bufferFormat = AVAudioFormat(commonFormat: .pcmFormatInt16, sampleRate: self.targetSampleRate, channels: 1, interleaved: true)!
-        
-        //let audioBuffer = AVAudioPCMBuffer(pcmFormat: bufferFormat, frameCapacity:  AVAudioFrameCount(data.count) )!
-        //let audioBuffer = AVAudioPCMBuffer(pcmFormat: bufferFormat, frameCapacity:  UInt32(data.count) / bufferFormat.streamDescription.pointee.mBytesPerFrame )!
-        //audioBuffer.frameLength = audioBuffer.frameCapacity
-        //data.withUnsafeBytes { audioBuffer.int16ChannelData?.pointee.update(from: $0.bindMemory(to: Int16.self).baseAddress!, count: Int(audioBuffer.frameCapacity)) }
-        
-        let audioBuffer = data.toAudioBuffer(format: bufferFormat)!
-        
-        print("Play buffer \(audioBuffer.format)")
-        
-        if let playerNode = playerNodes[userId] {
-            playerNode.scheduleBuffer(audioBuffer, at: nil)
-            if !playerNode.isPlaying {
-                playerNode.play()
-            }
-        } else {
-            let playerNode = AVAudioPlayerNode()
-            playerNodes[userId] = playerNode
-            audioEngine.attach(playerNode)
-            audioEngine.connect(playerNode, to: audioEngine.mainMixerNode, format: bufferFormat)
-            //audioEngine.connect(playerNode, to: audioEngine.mainMixerNode, format: audioEngine.inputNode.outputFormat(forBus: 0))
-            playerNode.scheduleBuffer(audioBuffer, at: nil)
-            playerNode.play()
-            print("Buffer: \(bufferFormat)")
+
+    }
+    
+    // read from buffer then play
+    private func checkAndPlayBuffer() {
+        if let audioData = audioRingBuffer.read() {
+            scheduleAndPlayAudio(userId: audioData.userId, buffer: audioData.buffer)
+            //print("Play buffer data")
+        }else{
+            //print("No buffer data")
         }
-        */
+    }
+    
+    // read from buffer then send
+    private func checkAndSendBuffer(){
+        if let audioData = audioEncoedRingBuffer.read() {
+            self.socket.emit("audioData", audioData)
+        }
     }
     
     private func scheduleAndPlayAudio(userId: String, buffer: AVAudioPCMBuffer) {
@@ -260,6 +244,7 @@ class AudioRoomManager {
     // send audio
     // this is for info
     // https://github.com/tensorflow/examples/blob/master/lite/examples/speech_commands/ios/SpeechCommands/AudioInputManager/AudioInputManager.swift
+    // https://stackoverflow.com/questions/67661093/how-to-get-buffer-from-avaudioengines-installtap-at-high-frequency
     private func startRecording() {
         
         let inputNode = audioEngine.inputNode
@@ -344,7 +329,6 @@ class AudioRoomManager {
         
     }
     
-    
     private func processBufferData(_ bufferPointer: UnsafePointer<Int16>, frameLength: Int) {
         let chunkSize = 2880 // 60ms chunk size (48000 * 0.06 seconds)
         
@@ -357,7 +341,9 @@ class AudioRoomManager {
         while offset + chunkSize <= frameLength {
             let chunkData = data.subdata(in: offset..<(offset + chunkSize * 2))
             if let encodedPacket = OpusSwiftPort.shared.encodeData(chunkData) {                
-                self.socket.emit("audioData", encodedPacket)
+                 self.socket.emit("audioData", encodedPacket)
+                // save it to buffer
+                //self.audioEncoedRingBuffer.write(encodedPacket)
             }
             offset += chunkSize
         }
@@ -381,4 +367,10 @@ extension Data {
         audioBuffer?.frameLength = audioBuffer!.frameCapacity
         return audioBuffer
     }
+}
+
+
+struct AudioData {
+    let userId: String
+    let buffer: AVAudioPCMBuffer
 }
