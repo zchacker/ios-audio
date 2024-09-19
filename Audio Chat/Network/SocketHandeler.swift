@@ -11,8 +11,8 @@ import SocketIO
 class SocketHandeler : NSObject {
     
     public static let shared = SocketHandeler()
-    //let manager = SocketManager(socketURL: URL(string: "http://192.168.100.17:3000")!, config: [.log(false), .compress])
-    let manager = SocketManager(socketURL: URL(string: "https://voice.ovemenu.com")!, config: [.log(false), .compress])
+    let manager = SocketManager(socketURL: URL(string: "http://192.168.100.14:3000")!, config: [.log(false), .compress])
+    //let manager = SocketManager(socketURL: URL(string: "https://voice.ovemenu.com")!, config: [.log(false), .compress])
 
     let socket: SocketIOClient!
     

@@ -20,6 +20,7 @@
 		4E587B792C52AACD002D9A55 /* AudioRoomManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E587B782C52AACD002D9A55 /* AudioRoomManager.swift */; };
 		4E587B7C2C52B22F002D9A55 /* SocketIO in Frameworks */ = {isa = PBXBuildFile; productRef = 4E587B7B2C52B22F002D9A55 /* SocketIO */; };
 		4E74D3512C8210500001D88E /* SwiftRingBuffer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E74D3502C8210500001D88E /* SwiftRingBuffer.swift */; };
+		4EC91E8F2C95BAA8001798BC /* AudioService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4EC91E8E2C95BAA8001798BC /* AudioService.swift */; };
 		5B1AF5A9DDF770AFAE755055 /* Pods_Audio_Chat.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 926E633ABC8480E8D9D28039 /* Pods_Audio_Chat.framework */; };
 /* End PBXBuildFile section */
 
@@ -61,6 +62,7 @@
 		4E587B712C52A8A5002D9A55 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		4E587B782C52AACD002D9A55 /* AudioRoomManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioRoomManager.swift; sourceTree = "<group>"; };
 		4E74D3502C8210500001D88E /* SwiftRingBuffer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftRingBuffer.swift; sourceTree = "<group>"; };
+		4EC91E8E2C95BAA8001798BC /* AudioService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioService.swift; sourceTree = "<group>"; };
 		926E633ABC8480E8D9D28039 /* Pods_Audio_Chat.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_Audio_Chat.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -168,6 +170,7 @@
 			isa = PBXGroup;
 			children = (
 				4E587B782C52AACD002D9A55 /* AudioRoomManager.swift */,
+				4EC91E8E2C95BAA8001798BC /* AudioService.swift */,
 			);
 			path = Audio;
 			sourceTree = "<group>";
@@ -299,6 +302,7 @@
 				4E0037742C5EDC970025E85C /* SocketHandeler.swift in Sources */,
 				4E587B642C52A8A3002D9A55 /* AppDelegate.swift in Sources */,
 				4E587B662C52A8A3002D9A55 /* SceneDelegate.swift in Sources */,
+				4EC91E8F2C95BAA8001798BC /* AudioService.swift in Sources */,
 				4E2140E12C558B0000C53749 /* OpusPort.c in Sources */,
 				4E587B792C52AACD002D9A55 /* AudioRoomManager.swift in Sources */,
 				4E74D3512C8210500001D88E /* SwiftRingBuffer.swift in Sources */,

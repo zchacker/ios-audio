@@ -29,7 +29,8 @@ class ViewController: UIViewController {
         DispatchQueue.global(qos: .background).async {
             //let socketURL = URL(string: "http://192.168.100.17:3000")!
             let socketURL = URL(string: "http://voice.ovemenu.com")!
-            self.audioRoomManager = AudioRoomManager(socketURL: socketURL, username: username, viewParent: self)
+            //self.audioRoomManager = AudioRoomManager(socketURL: socketURL, username: username, viewParent: self)
+            let audioService = AudioService(socketURL: socketURL, username: username, viewParent: self)
         }
         self.online = true
         self.exit_btn.isHidden = false

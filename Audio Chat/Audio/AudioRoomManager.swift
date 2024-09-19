@@ -124,9 +124,9 @@ class AudioRoomManager {
             
             try audioEngine.start()
             
-            let timer = Timer.scheduledTimer(withTimeInterval: 0.06, repeats: true) { _ in
-                self.checkAndPlayBuffer()
-            }
+//            let timer = Timer.scheduledTimer(withTimeInterval: 0.06, repeats: true) { _ in
+//                self.checkAndPlayBuffer()
+//            }
             
 //            let senderTimer = Timer.scheduledTimer(withTimeInterval: 0.06, repeats: true) { _ in
 //                self.checkAndSendBuffer()
@@ -142,12 +142,12 @@ class AudioRoomManager {
     private func processAudioData(userId: String, data: Data) {
         
         // Decode Opus data to raw PCM
-        guard let decodedData = OpusSwiftPort.shared.decodeData(data) else {
-            print("Failed to decode Opus data")
-            return
-        }
+//        guard let decodedData = OpusSwiftPort.shared.decodeData(data) else {
+//            print("Failed to decode Opus data")
+//            return
+//        }
         
-        //let decodedData = data
+        let decodedData = data
         
         // Determine the output format of the audio engine
         let outputFormat = audioEngine.outputNode.outputFormat(forBus: 0)
@@ -158,23 +158,28 @@ class AudioRoomManager {
             return
         }
         
-        guard let audioBuffer = decodedData.toAudioBuffer(format: inputBufferFormat) else {
+        //guard let audioBuffer = decodedData.bestToAudioBuffer(format: outputFormat) else {
+        guard let audioBuffer = decodedData.bestToAudioBuffer(format: inputBufferFormat) else {
             print("Failed to create audio buffer from decoded data")
             return
         }
         
         //scheduleAndPlayAudio(userId: userId, buffer: audioBuffer)
         
+        //let audioData = AudioData(userId: userId, buffer: audioBuffer)
+        //self.audioRingBuffer.write(audioData)
+        
         
         // Check if resampling is needed
         if inputBufferFormat != outputFormat {
+            
             guard let converter = AVAudioConverter(from: inputBufferFormat, to: outputFormat) else {
                 print("Failed to create AVAudioConverter")
                 return
             }
             
             let resampledBuffer = AVAudioPCMBuffer(pcmFormat: outputFormat, frameCapacity: audioBuffer.frameCapacity)!
-            
+          
             var error: NSError? = nil
             converter.convert(to: resampledBuffer, error: &error, withInputFrom: { inNumPackets, outStatus in
                 outStatus.pointee = .haveData
@@ -186,25 +191,22 @@ class AudioRoomManager {
                 return
             }
             
-        
             // Use the resampled buffer
-            // scheduleAndPlayAudio(userId: userId, buffer: resampledBuffer)
+            scheduleAndPlayAudio(userId: userId, buffer: resampledBuffer)
             
             // save it in buffer
-            let audioData = AudioData(userId: userId, buffer: resampledBuffer)
-            self.audioRingBuffer.write(audioData)
+            //let audioData = AudioData(userId: userId, buffer: resampledBuffer)
+            //self.audioRingBuffer.write(audioData)
             
         } else {
             // No resampling needed, use the original buffer
-            // scheduleAndPlayAudio(userId: userId, buffer: audioBuffer)
+            scheduleAndPlayAudio(userId: userId, buffer: audioBuffer)
             
             // save it in buffer
-            let audioData = AudioData(userId: userId, buffer: audioBuffer)
-            self.audioRingBuffer.write(audioData)
-            
+            //let audioData = AudioData(userId: userId, buffer: audioBuffer)
+            //self.audioRingBuffer.write(audioData)
         }
         
-
     }
     
     // read from buffer then play
@@ -259,7 +261,7 @@ class AudioRoomManager {
         }
         
         // MARK: check this value
-        let frameSize:UInt32 = 5760// 280 // 5760 // 1024
+        let frameSize:UInt32 = 2880*2// 280 // 5760 // 1024
         print("recordingFormat: \(targetFormat)")
         
         inputNode.installTap(onBus: 0, bufferSize: AVAudioFrameCount(frameSize), format: inputFormat) { buffer, time in
@@ -280,7 +282,8 @@ class AudioRoomManager {
                 
                 // Create an output buffer with the target format
                 //guard let outputBuffer = AVAudioPCMBuffer(pcmFormat: targetFormat, frameCapacity: AVAudioFrameCount(self.targetSampleRate)) else {
-                guard let resampledBuffer = AVAudioPCMBuffer(pcmFormat: targetFormat, frameCapacity: buffer.frameCapacity) else {
+                guard let resampledBuffer = AVAudioPCMBuffer(pcmFormat: targetFormat, frameCapacity: AVAudioFrameCount(self.targetSampleRate)) else {
+                //guard let resampledBuffer = AVAudioPCMBuffer(pcmFormat: targetFormat, frameCapacity: buffer.frameCapacity) else {
                     print("Failed to create output buffer")
                     return
                 }
@@ -305,8 +308,8 @@ class AudioRoomManager {
                 // Now, outputBuffer contains the audio data in the new format (41,000 Hz, Int16)
                 // You can further process or send this data to an audio output node
                 
-                //let data = resampledBuffer.toData() // resampled buffer
-                //let data = buffer.toData() // original buffer
+                let data = resampledBuffer.toData() // resampled buffer
+                //let data = buffer.bestToData() // original buffer
                 
                 //print("Sent size: \(data.count)")
                 
@@ -316,12 +319,14 @@ class AudioRoomManager {
                 //self.socket.emit("audioData", packet ?? Data())
                 //self.socket.emit("audioData", data)
                 
+                /*
                 // process audio
                 let frameLength   = Int(resampledBuffer.frameLength)
                 let bufferPointer = resampledBuffer.int16ChannelData!.pointee
                 
                 // Process the buffer data in chunks
                 self.processBufferData(bufferPointer, frameLength: frameLength)
+                */
                 
                 
             }// end of conversionQueue
@@ -355,9 +360,51 @@ class AudioRoomManager {
 // MARK: - Helper Extensions
 extension AVAudioPCMBuffer {
     func toData() -> Data {
+        
         let audioBuffer = self.audioBufferList.pointee.mBuffers
         return Data(bytes: audioBuffer.mData!, count: Int(audioBuffer.mDataByteSize))
     }
+    
+    
+    func bestToData() -> Data {
+        let format = self.format
+        let frameLength = Int(self.frameLength)
+               
+        
+        switch format.commonFormat {
+        case .pcmFormatFloat32:
+            // Handle Float32 format
+            guard let channelData = self.floatChannelData else {
+                return Data()
+            }
+            let channelDataPointer = channelData.pointee
+            let channelDataSize = frameLength * MemoryLayout<Float32>.size
+            return Data(bytes: channelDataPointer, count: channelDataSize)
+            
+        case .pcmFormatInt16:
+            // Handle Int16 format
+            guard let channelData = self.int16ChannelData else {
+                return Data()
+            }
+            let channelDataPointer = channelData.pointee
+            let channelDataSize = frameLength * MemoryLayout<Int16>.size
+            return Data(bytes: channelDataPointer, count: channelDataSize)
+
+        case .pcmFormatInt32:
+            // Handle Int32 format
+            guard let channelData = self.int32ChannelData else {
+                return Data()
+            }
+            let channelDataPointer = channelData.pointee
+            let channelDataSize = frameLength * MemoryLayout<Int32>.size
+            return Data(bytes: channelDataPointer, count: channelDataSize)
+
+        default:
+            // Unsupported format
+            return Data()
+        }
+    }
+    
 }
 
 extension Data {
@@ -367,6 +414,8 @@ extension Data {
         audioBuffer?.frameLength = audioBuffer!.frameCapacity
         return audioBuffer
     }
+    
+
 }
 
 
