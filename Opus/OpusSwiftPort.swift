@@ -46,7 +46,7 @@ public class OpusSwiftPort: NSObject{
             print("OpusKit - Something went wrong while creating opus encoder: \(opusErrorMessage(errorCode: status))")
         }
                 
-        let ctl:Int32 = set_ctl_vars(encoder, 24000)
+        let ctl:Int32 = set_ctl_vars(encoder, 16000)
         print("Opus Codec is ready!, CTL vars is = \(ctl)")
         
     }

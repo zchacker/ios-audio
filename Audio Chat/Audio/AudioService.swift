@@ -9,27 +9,27 @@ import Foundation
 import AVFoundation
 import SocketIO
 
-
+// https://arvindhsukumar.medium.com/using-avaudioengine-to-record-compress-and-stream-audio-on-ios-48dfee09fde4
 public class AudioService {
     
     // audio settings
     let sample_rate:opus_int32      = 48000
     let channel:Int32               = 1
-    let frameSize:opus_int32        = 2880 //2880 // 4000 // 320// 4000 // 2000 /// 5760
+    let frameSize:opus_int32        = 2880 // 120, 240, 480, 960, 1920, and 2880 48Hz
     let encodeBlockSize:opus_int32  = 5670 //280// 2880 // 160 // 2880  /// 1440
     
     
     // Define the target format
     let targetSampleRate: Double = 48000.0// 44100.0
     let channelCount: AVAudioChannelCount = 1
-    let interleaved:Bool = false
+    let interleaved:Bool = true
     
     var playerConverter : AVAudioConverter?
     var hardwarePlayerFormat: AVAudioFormat?
     var outFormat: AVAudioFormat?
     
     var audioRingBuffer:RingBuffer        = RingBuffer<AudioData>(size: 32)
-    var audioEncoedRingBuffer:RingBuffer  = RingBuffer<Data>(size: 30)
+    var audioEncoedRingBuffer:RingBuffer  = RingBuffer<AVAudioPCMBuffer>(size: 15)
     
     let audioEngine = AVAudioEngine()
     var playerNodes: [String: AVAudioPlayerNode] = [:]
@@ -137,7 +137,7 @@ public class AudioService {
         }
         
 //        let timer = Timer.scheduledTimer(withTimeInterval: 0.06, repeats: true) { _ in
-//            self.checkAndPlayBuffer()
+//            self.checkAndSendBuffer()
 //        }
         
         // outputNode for speakers
@@ -162,30 +162,13 @@ public class AudioService {
             print("Failed to decode Opus data")
             return
         }
-        
-//        print("decodedData : \(decodedData.count)")
-        
-//        let decodedData = data
-        
-        // outputNode for speakers
-        // Determine the output format of the audio engine
-//        let outputFormat = audioEngine.outputNode.inputFormat(forBus: 0)
-//        
-//        // Convert decoded data to AVAudioPCMBuffer
-//        guard let inputBufferFormat = AVAudioFormat(commonFormat: .pcmFormatInt16, sampleRate: self.targetSampleRate, channels: self.channelCount, interleaved: self.interleaved) else {
-//            print("Failed to create input buffer format")
-//            return
-//        }
-        
+
         guard let audioBuffer = decodedData.bestToAudioBuffer(format: self.outFormat!) else {
             print("Failed to create audio buffer from decoded data")
             return
         }
         
-
         // Check if resampling is needed
-//        if inputBufferFormat != outputFormat {
-//        if self.outFormat != self.localFormat {
         if self.hardwarePlayerFormat != self.outFormat {
             
             let ratio = self.targetSampleRate / self.hardwarePlayerFormat!.sampleRate
@@ -232,6 +215,18 @@ public class AudioService {
         }
     }
     
+    // read from buffer then send
+    private func checkAndSendBuffer(){
+        if let buffer = self.audioEncoedRingBuffer.read() {
+            // process audio
+            let frameLength   = Int(buffer.frameLength)
+            let bufferPointer = buffer.int16ChannelData!.pointee
+            
+            // Process the buffer data in chunks
+            self.processBufferData(bufferPointer, frameLength: frameLength)
+        }
+    }
+    
     // send data to hardware
     private func scheduleAndPlayAudio(userId: String, buffer: AVAudioPCMBuffer) {
         if let playerNode = playerNodes[userId] {
@@ -272,7 +267,7 @@ public class AudioService {
         converter.sampleRateConverterQuality = .max
         
         // MARK: check this value
-        let frameSize:UInt32 = 2880*2 //256// 2880*4 //5760// 280 // 5760 // 1024
+        let frameSize:UInt32 = 5760// 2880*2 //256// 2880*4 //5760// 280 // 5760 // 1024
 
         inputNode.installTap(onBus: 0, bufferSize: frameSize, format: inputFormat) { buffer, time in
                         
@@ -296,6 +291,9 @@ public class AudioService {
                     return
                 }
                 
+//                print("buffer : \(buffer.frameLength)")
+//                return // stop
+                
                 // Perform the conversion
                 let inputBlock: AVAudioConverterInputBlock = { inNumPackets, outStatus in
                     outStatus.pointee = .haveData
@@ -308,13 +306,8 @@ public class AudioService {
                 if let error = error {
                     print("Error during conversion: \(error)")
                 }
-                
-//                let data = resampledBuffer.convertToData() // resampled buffer
-//                let packet = OpusSwiftPort.shared.encodeData(data)
-//                self.socket.emit("audioData", packet ?? Data())
-                
-//                print("Sent size: \(data.count) frame: \(resampledBuffer.frameLength)")
-                
+
+//                self.audioEncoedRingBuffer.write(resampledBuffer)
                 
                 // process audio
                 let frameLength   = Int(resampledBuffer.frameLength)
@@ -326,10 +319,7 @@ public class AudioService {
                 
             }else{
                 
-
-//                 let data = buffer.convertToData() // original buffer
-//                 let packet = OpusSwiftPort.shared.encodeData(data)
-//                 self.socket.emit("audioData", packet ?? Data())
+//                self.audioEncoedRingBuffer.write(buffer)
                 
                 // process audio
                 let frameLength   = Int(buffer.frameLength)
@@ -346,57 +336,8 @@ public class AudioService {
     
     private func processBufferData(_ bufferPointer: UnsafePointer<Int16>, frameLength: Int) {
        
-        /*
-            let chunkSize = 2880*1 // 60ms chunk size (48000 * 0.06 seconds)
-            
-            // Convert the whole buffer to Data
-            //let data = Data(bytes: bufferPointer, count: frameLength * 2)
-            let data = Data(bytes: bufferPointer, count: frameLength * MemoryLayout<Int16>.size)
-            
-            var offset = 0
-            
-            /*
-             // Process each 60ms chunk
-             while offset + chunkSize <= frameLength {
-             let chunkData = data.subdata(in: offset..<(offset + chunkSize * 2))
-             //self.socket.emit("audioData", chunkData)
-             if let encodedPacket = OpusSwiftPort.shared.encodeData(chunkData) {
-             self.socket.emit("audioData", encodedPacket)
-             // save it to buffer
-             //self.audioEncoedRingBuffer.write(encodedPacket)
-             }
-             offset += chunkSize
-             }
-             */
-            //print("frameLength \(frameLength)")
-            
-            while offset + chunkSize <= frameLength {
-                //let chunkData = data.subdata(in: offset..<(offset + chunkSize * 2))
-                let chunkData = data.subdata(in: offset..<(offset + chunkSize * MemoryLayout<Int16>.size))
-         
-                print("range : \(offset..<(offset + chunkSize * MemoryLayout<Int16>.size) )")
-                
-                if let encodedPacket = OpusSwiftPort.shared.encodeData(chunkData) {
-                    self.socket.emit("audioData", encodedPacket)
-                }
-                offset += chunkSize// (chunkSize * MemoryLayout<Int16>.size)
-                
-                print("offset + chunkSize: \(offset + (chunkSize * MemoryLayout<Int16>.size))")
-                print("offset \(offset)")
-            }
-            
-            // If any leftover data exists
-            let remaining = frameLength - offset
-            if remaining > 0 {
-                let leftoverData = data.subdata(in: offset..<(offset + remaining * 2))
-                print("leftoverData: \(leftoverData.count)")
-                // Handle the remaining data, buffer it for the next process cycle
-            }
-        */
-        
-        
         let chunkSizeInFrames = 2880 // 60ms chunk size in frames
-        let chunkSizeInBytes = chunkSizeInFrames * MemoryLayout<Int16>.size // 5760 bytes
+        let chunkSizeInBytes  = chunkSizeInFrames * MemoryLayout<Int16>.size // 5760 bytes
         
         // Convert the whole buffer to Data
         let data = Data(bytes: bufferPointer, count: frameLength * MemoryLayout<Int16>.size)
@@ -408,11 +349,12 @@ public class AudioService {
         while offset + chunkSizeInBytes <= totalLength {
             // Extract a 5760-byte chunk (2880 frames)
             let chunkData = data.subdata(in: offset..<(offset + chunkSizeInBytes))
-            //print("range : \(offset..<(offset + chunkSizeInBytes))")
             
             // Pass the chunk to the Opus encoder
             if let encodedPacket = OpusSwiftPort.shared.encodeData(chunkData) {
-                self.socket.emit("audioData", encodedPacket)
+                //threadQueue.async {
+                    self.socket.emit("audioData", encodedPacket)
+               // }
             }
             
             offset += chunkSizeInBytes
