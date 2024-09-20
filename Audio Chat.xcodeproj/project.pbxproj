@@ -11,6 +11,8 @@
 		4E2140E12C558B0000C53749 /* OpusPort.c in Sources */ = {isa = PBXBuildFile; fileRef = 4E2140E02C558B0000C53749 /* OpusPort.c */; };
 		4E2140E32C558B9D00C53749 /* OpusSwiftPort.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E2140E22C558B9D00C53749 /* OpusSwiftPort.swift */; };
 		4E2140E62C5709D900C53749 /* libopus.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 4E1CEFD72C54422F004025C3 /* libopus.a */; };
+		4E51CAA32C9D872D00E1661C /* AACEncoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E51CAA22C9D872D00E1661C /* AACEncoder.swift */; };
+		4E51CAA52C9D873A00E1661C /* AACDecoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E51CAA42C9D873A00E1661C /* AACDecoder.swift */; };
 		4E587B642C52A8A3002D9A55 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E587B632C52A8A3002D9A55 /* AppDelegate.swift */; };
 		4E587B662C52A8A3002D9A55 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E587B652C52A8A3002D9A55 /* SceneDelegate.swift */; };
 		4E587B682C52A8A3002D9A55 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E587B672C52A8A3002D9A55 /* ViewController.swift */; };
@@ -52,6 +54,8 @@
 		4E2140DF2C558B0000C53749 /* OpusPort.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = OpusPort.h; sourceTree = "<group>"; };
 		4E2140E02C558B0000C53749 /* OpusPort.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = OpusPort.c; sourceTree = "<group>"; };
 		4E2140E22C558B9D00C53749 /* OpusSwiftPort.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpusSwiftPort.swift; sourceTree = "<group>"; };
+		4E51CAA22C9D872D00E1661C /* AACEncoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AACEncoder.swift; sourceTree = "<group>"; };
+		4E51CAA42C9D873A00E1661C /* AACDecoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AACDecoder.swift; sourceTree = "<group>"; };
 		4E587B602C52A8A3002D9A55 /* Audio Chat.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Audio Chat.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		4E587B632C52A8A3002D9A55 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		4E587B652C52A8A3002D9A55 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
@@ -171,6 +175,8 @@
 			children = (
 				4E587B782C52AACD002D9A55 /* AudioRoomManager.swift */,
 				4EC91E8E2C95BAA8001798BC /* AudioService.swift */,
+				4E51CAA22C9D872D00E1661C /* AACEncoder.swift */,
+				4E51CAA42C9D873A00E1661C /* AACDecoder.swift */,
 			);
 			path = Audio;
 			sourceTree = "<group>";
@@ -299,6 +305,8 @@
 			files = (
 				4E587B682C52A8A3002D9A55 /* ViewController.swift in Sources */,
 				4E2140E32C558B9D00C53749 /* OpusSwiftPort.swift in Sources */,
+				4E51CAA32C9D872D00E1661C /* AACEncoder.swift in Sources */,
+				4E51CAA52C9D873A00E1661C /* AACDecoder.swift in Sources */,
 				4E0037742C5EDC970025E85C /* SocketHandeler.swift in Sources */,
 				4E587B642C52A8A3002D9A55 /* AppDelegate.swift in Sources */,
 				4E587B662C52A8A3002D9A55 /* SceneDelegate.swift in Sources */,

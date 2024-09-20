@@ -46,7 +46,7 @@ public class OpusSwiftPort: NSObject{
             print("OpusKit - Something went wrong while creating opus encoder: \(opusErrorMessage(errorCode: status))")
         }
                 
-        let ctl:Int32 = set_ctl_vars(encoder, 96000)
+        let ctl:Int32 = set_ctl_vars(encoder, 24000)
         print("Opus Codec is ready!, CTL vars is = \(ctl)")
         
     }
@@ -58,8 +58,9 @@ public class OpusSwiftPort: NSObject{
         //var decodedData = [opus_int16](repeating: 0, count: 2048)
         //print("audio network length : \(data.count)")
         
+        let length        = frameSize * numberOfChannels * Int32(MemoryLayout<Int16>.size) //sizeof(opus_int16)
         var encodedData   = [CUnsignedChar](repeating: 0, count: data.count)
-        var decodedData   = [opus_int16](repeating: 0, count: Int(frameSize * numberOfChannels * 2) )// this is when we use normal decodeing
+        var decodedData   = [opus_int16](repeating: 0, count: Int(length) )// this is when we use normal decodeing Int(frameSize * numberOfChannels * 2)
         //var decodedData = [Float32](repeating: 0, count: Int(frameSize * numberOfChannels * 4) )// this is when we use float decoding
                        
         
@@ -72,6 +73,7 @@ public class OpusSwiftPort: NSObject{
         let ret = opus_decode(decoder , encodedData , (opus_int32)(data.count) , &decodedData, frameSize, 0)
         //let ret = opus_decode_float(decoder, encodedData, (opus_int32)(data.count), &decodedData, packetSize, 0)
         
+        //print("ret \(ret)")
         if ret > 0 {
             let length: Int = Int(ret) * MemoryLayout<opus_int16>.size
             outputData.append(decodedData, length: length)

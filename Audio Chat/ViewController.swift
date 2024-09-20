@@ -26,7 +26,7 @@ class ViewController: UIViewController {
         self.loadingView.isHidden = false
         
         let username = self.username.text ?? ""
-        DispatchQueue.global(qos: .background).async {
+        DispatchQueue.global(qos: .userInitiated).async {
             //let socketURL = URL(string: "http://192.168.100.17:3000")!
             let socketURL = URL(string: "http://voice.ovemenu.com")!
             //self.audioRoomManager = AudioRoomManager(socketURL: socketURL, username: username, viewParent: self)
